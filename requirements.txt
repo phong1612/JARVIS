@@ -1,0 +1,12 @@
+Requirement:
+Install Ollmaa, whisper, sounddevice, chromadb, psutil and any other dependencies required for the project. You can do this by running the following command:
+
+import Ollama
+from faster_whisper import WhisperModel
+import sounddevice as sd
+import subprocess
+from urllib.parse import urlparse
+import time
+import chromadb
+import os
+import psutil

@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/jarvis.egg-info/PKG-INFO
+src/jarvis.egg-info/SOURCES.txt
+src/jarvis.egg-info/dependency_links.txt
+src/jarvis.egg-info/top_level.txt
+src/memory/__init__.py
+src/memory/memory.py
+src/tools/__init__.py
+src/tools/file_access.py
+src/tools/file_index.py
+src/tools/tools.py
+src/voice/__init__.py
+src/voice/speech.py
+src/voice/voice.py
