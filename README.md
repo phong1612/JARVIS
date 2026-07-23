@@ -6,7 +6,7 @@ A local-first, voice-driven personal AI assistant that runs entirely on your own
 
 Built as a hands-on exploration of the core architecture behind modern AI agents: RAG, embeddings, tool-calling, and dynamic context management, all running locally on a memory-constrained laptop rather than a cloud GPU.
 
-> 📹 **Demo video:** ![Video Demo](/JARVIS.mov)
+> 📹 **Demo video:** <iframe width="560" height="315" src="https://youtu.be/Be0ic9Q66lM" frameborder="0" allowfullscreen></iframe>   
 
 ---
 
