@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Virtual environments
+.venv/
+venv/
+
+# Chroma database
+data/chroma_db/
+
+# Logs
+*.log
+
+# Audio files
+*.wav
+
+# Vercel
+.vercel/
+
+jarvis.egg-info/
