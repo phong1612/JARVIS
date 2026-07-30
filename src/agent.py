@@ -1,4 +1,4 @@
-from tools.tools import get_time, get_date, set_reminder, open_app, open_url, search_engine, open_workspace, open_webspace, close_app, close_url, close_workspace, close_webspace, get_battery_status, white_list, known_sites, workspaces, webspaces
+from tools.tools import get_time, get_date, set_reminder, open_app, open_url, search_engine, open_workspace, open_webspace, close_app, close_url, close_workspace, close_webspace, get_battery_status, switch_desktop, white_list, known_sites, workspaces, webspaces
 from tools.file_access import open_file, create_file, read_file, find_file
 from rag import collections, get_embedding, retrieve_memory, client
 import ollama
@@ -76,13 +76,27 @@ tools_schema = [
         'type': 'function',
         "function": {
             "name": "open_app",
-            "description": "Opens a named macOS application. Use this for a SINGLE specific app the user names directly (e.g. 'open notion'). Do NOT use this for workspace/preset requests — use open_workspace for those instead.",
+            "description": """
+                            Opens a named macOS application. Use this for a SINGLE specific app the user names directly (e.g. 'open notion'). Do NOT use this for workspace/preset requests — use open_workspace for those instead.
+
+                            Example: user asks 'open notion on desktop 2' → call open_app with name 'notion', desktop=2
+                            Example: user asks 'open a new instance of brave on desktop 3' →  call open_app with name 'brave', desktop=3, new_instance=True
+                            Example: user asks 'open spotify' (no desktop mentioned) → call open_app with name='spotify', omitting desktop entirely.
+                            """,
             "parameters": {
                 "type": "object",
                 'properties': {
                     "name": {
                         "type": "string",
-                        "description": "Name of the app to open. E.g. 'spotify', 'tradingview'."
+                        "description": "Name of the app to open. E.g. 'spotify', 'tradingview'.",
+                    },
+                    "desktop": {
+                        "type": "integer",
+                        "description": "Optional. Which desktop/Space to switch to before opening, e.g. 3. Omit to open on the current desktop."
+                    },
+                    "new_instance": {
+                        "type": "boolean",
+                        "description": "Optional. Will check whether to create a new instance of the application."
                     }
                 },
                 "required": ["name"]
@@ -104,6 +118,10 @@ tools_schema = [
                     "browser": {
                         "type": 'string',
                         'description': "The browser that will be used to open the website on. E.g. 'brave' "
+                    },
+                    "desktop": {
+                        "type": "integer",
+                        "description": "Optional. Which desktop/Space to switch to before opening, e.g. 3. Omit to open on the current desktop."
                     }
                 },
                 "required": ["url"]
@@ -197,13 +215,22 @@ tools_schema = [
         'type': 'function',
         "function": {
             "name": "open_workspace",
-            "description": "Opens a preset GROUP of applications for a named workspace (e.g. 'coding', 'study'). Only use this when the user explicitly says a workspace name — NOT when they name a single individual app, even if that app happens to also be part of a workspace.",
+            "description": """
+                            Opens a preset GROUP of applications for a named workspace (e.g. 'coding', 'study'). Only use this when the user explicitly says a workspace name — NOT when they name a single individual app, even if that app happens to also be part of a workspace.
+
+                            Example: user asks 'open my coding workspace on desktop 3' → call open_workspace with name='coding', desktop=3.
+                            Example: user asks 'open my study workspace' → call open_workspace with name 'study', omitting desktop entirely.
+                            """,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
                         "description": "The workspace name, e.g. 'coding', 'trading', 'study'."
+                    },
+                    "desktop": {
+                        "type": "integer",
+                        "description": "Optional. Which desktop/Space to switch to before opening, e.g. 3. Omit to open on the current desktop."
                     }
                 },
                 "required": ["name"]
@@ -231,13 +258,22 @@ tools_schema = [
         'type': 'function',
         "function": {
             "name": "open_webspace",
-            "description": "Opens a preset group of websites for a named webspace, e.g. 'code' or 'entertainment'. Use this when the user asks to open their webspace, setup, or environment by name, rather than individual websites.",
+            "description": """
+                            Opens a preset group of websites for a named webspace, e.g. 'code' or 'entertainment'. Use this when the user asks to open their webspace, setup, or environment by name, rather than individual websites.
+
+                            Example: user asks 'open my entertainment webspace on desktop 3' → call open_webspace with name='entertainment', desktop=3.
+                            Example: user asks 'open code webspace' (no desktop mentioned) → call open_webspace with name='code', omitting desktop entirely.
+                            """,
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
                         "description": "The webspace name, e.g. 'code', 'school', 'entertainment'."
+                    },
+                    "desktop": {
+                        "type": "integer",
+                        "description": "Optional. Which desktop/Space to swith to before opening. Example: 3. Omit to open on the current desktop"
                     }
                 },
                 "required": ["name"]
@@ -400,6 +436,29 @@ tools_schema = [
                 "required": ["filename", "content"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "switch_desktop",
+            "description": """
+                Switch to a specific macOS desktop.
+                Requires user to confnigure Mission Control keyboard shortcuts (Switch to Desktop 1, 2, 3, etc) and grant Accessibility/Automation permission to JARVIS (Vscode / Terminal).
+
+                Use this when the user asks to:
+                - "Go to desktop 2"
+                - Switch to desktop 4"
+                - "Move to workspace 3"
+                - "Open desktop 1"
+            """,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "desktop_id": {"type": "integer", "description": "The desktop number to switch to (1-4)."}
+                },
+                "required": ["desktop_id"]
+            },
+        }
     }
 ]
 
@@ -421,7 +480,8 @@ tool_functions = {
     "find_file": find_file,
     "read_file": read_file,
     "create_file": create_file,
-    "open_file": open_file
+    "open_file": open_file,
+    "switch_desktop": switch_desktop
 }
 
 
@@ -435,8 +495,6 @@ def run_agent(user_text: str, history: list) -> str:
     """
     
     relevant_schema, relevant_functions = select_tools(user_text)
-
-    print(relevant_functions.keys())
 
     system_message = {
     "role": "system",
@@ -544,7 +602,3 @@ def run_agent(user_text: str, history: list) -> str:
     answer = clean_content(final_response['message']['content'])
 
     return answer
-# agent.py — run directly
-if __name__ == "__main__":
-    client.delete_collection("jarvis_tools")
-    tool_index = client.get_or_create_collection(name="jarvis_tools")

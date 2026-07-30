@@ -13,19 +13,20 @@ import psutil
 
 
 white_list = {
-    "notion": "Notion",
-    "obsidian": "Obsidian",
-    "brave": "Brave Browser",
-    "vs code": "Visual Studio Code",
-    "tradingview": "TradingView",
-    "zalo": "Zalo",
-    "ghostty": "Ghostty",
-    "finder": "Finder",
-    "spotify": "Spotify",
-    "discord": "Discord",
-    "whatsapp": "WhatsApp",
-    "activity monitor": "Activity Monitor"
+    "notion": {"alias": "Notion", "launch": "app", "new_instance": False},
+    "obsidian": {"alias": "Obsidian", "launch": "app", "new_instance": False},
+    "brave": {"alias": "Brave Browser", "launch": "app", "new_instance": True},
+    "vs code": {"alias": "Visual Studio Code", "launch": "code", "new_instance": False},
+    "tradingview": {"alias": "TradingView", "launch": "app", "new_instance": False},
+    "zalo": {"alias": "Zalo", "launch": "app", "new_instance": False},
+    "ghostty": {"alias": "Ghostty", "launch": "app", "new_instance": False},
+    "finder": {"alias": "Finder", "launch": "app", "new_instance": False},
+    "spotify": {"alias": "Spotify", "launch": "app", "new_instance": False},
+    "discord": {"alias": "Discord", "launch": "app", "new_instance": False},
+    "whatsapp": {"alias": "WhatsApp", "launch": "app", "new_instance": False},
+    "activity monitor": {"alias": "Activity Monitor", "launch": "app", "new_instance": False},
 }
+
 known_sites = {
     'youtube': 'https://www.youtube.com/',
     "instagram": "https://www.instagram.com/",
@@ -115,49 +116,73 @@ def get_battery_status():
     """
 
 # Normal-risk, medium difficulties 
-def open_workspace(name: str) -> str:
+def open_workspace(name: str, desktop=None) -> str:
     key = name.lower().strip()
-    summary = ''
     if key not in workspaces:
         return f"'{name}' is not a known workspace — refused."
-    else:
-        for app in workspaces[key]:
-            message = open_app(app)
-            time.sleep(2.0)
-            summary += message
-        return summary
-
-def open_webspace(name: str) -> str:
-    key = name.lower().strip()
+    
+    if desktop is not None:
+        ok, msg = do_switch_desktop(desktop)
+        if not ok:
+            return msg
+        
     summary = ''
+    for app in workspaces[key]:
+        summary += open_app(app) + ' '
+        time.sleep(2.0)
+    return summary
+
+def open_webspace(name: str, desktop=None) -> str:
+    key = name.lower().strip()
     if key not in webspaces:
         return f"'{name}' is not a known webspace — refused."
-    else:
-        for app in webspaces[key]:
-            message = open_url(app)
-            time.sleep(1.0)
-            summary += message
-        return summary
+    if desktop is not None:
+        ok, msg = do_switch_desktop(desktop)
+        if not ok:
+            return msg
 
-def open_app(name: str):
+    summary = ''
+    for app in webspaces[key]:
+        message = open_url(app)
+        time.sleep(1.0)
+        summary += message
+    return summary
+
+def open_app(name: str, desktop=None, new_instance: bool = False) -> str:
     """
     Opens a whitelisted macOS application by name.
     Returns a string describing what happened (success or refusal) —
     this string is what gets fed back to Ollama, so make it clear.
     """
-
+    if desktop is not None:
+        ok, msg = do_switch_desktop(desktop)
+        if not ok: # If error
+            return msg
+        
     key = name.lower().strip()
     if key not in white_list:
         return f"{name} not in the whitelist - action refused"
-    else:
-        try:
-            print(f"Opening {white_list[key]}")
-            subprocess.Popen(['open', '-a', white_list[key]])
-            return f"Opened {white_list[key]}."
-        except Exception as e:
-            return f'Cannot open {white_list[key]}: {e}'
+
+    config = white_list[key]
+    force_instance = new_instance if new_instance is not None else config.get("new_instance", False)
+
+    try:
+        if config['launch'] == "code":
+            cmd = ["code"]
+            if force_instance:
+                cmd.append("-n")
+            subprocess.run(cmd)
+        else:
+            cmd = ['open', '-a', config['alias']]
+            if force_instance:
+                cmd.insert(1, "-n")
+            subprocess.Popen(cmd)
+        suffix = f" on desktop {desktop}." if desktop is not None else "."
+        return f"Opened {white_list[key]}{suffix}."
+    except Exception as e:
+        return f'Cannot open {white_list[key]}: {e}'
         
-def open_url(url: str, browser = 'brave'):
+def open_url(url: str, browser = 'brave', desktop=None):
     """
     Opens a URL in a whitelisted browser.
     Assumes `url` may come from either:
@@ -165,6 +190,11 @@ def open_url(url: str, browser = 'brave'):
     2. Ollama constructing it directly from the user's request
     Either way, this function must not trust it blindly.
     """
+    if desktop is not None:
+        ok, msg = do_switch_desktop(desktop)
+        if not ok:
+            return msg
+        
     browser = (browser or 'brave').lower().strip()
     url = url.lower().strip()
     if browser not in browsers:
@@ -206,15 +236,15 @@ def close_app(name: str) -> str:
     key = name.lower().strip()
     if key not in white_list:
         return f"{name} not in whitelist - action refused."
-    else:
-        if not is_app_running(white_list[key]):
-            return f"App {name} is not running right now."
-        try:
-            print(f"Closing app {name}...")
-            subprocess.run(['osascript', '-e', f'quit app "{white_list[key]}"'])
-            return f"Closed app {white_list[key]}."
-        except Exception as e:
-            return f"Can't close app {name}: {e}"
+    alias = white_list[key]['alias']
+    if not is_app_running(alias):
+        return f"App {name} is not running right now."
+    try:
+        print(f"Closing app {name}...")
+        subprocess.run(['osascript', '-e', f'quit app "{alias}"'])
+        return f"Closed app {alias}."
+    except Exception as e:
+        return f"Can't close app {name}: {e}"
 
 def close_workspace(name:str) -> str:
     key = name.lower().strip()
@@ -321,3 +351,26 @@ def laptop_restart(confirmed: bool = False) -> str:
     except Exception as e:
         return f"Failed to restart: {e}"
 
+MAX_DESKTOPS = 4
+def do_switch_desktop(number) -> tuple[bool, str]:
+    try:
+        number = int(number)
+    except(ValueError, TypeError):
+        return False, f"{number} isn't a valid desktop number"
+    if number < 1 or number > MAX_DESKTOPS:
+        return False, f"{number} doesn't exist - you currently have {MAX_DESKTOPS}"
+    keycode = 17 + number
+    script = f'''
+        tell application "System Events"
+            key code {keycode} using {{control down}}
+        end tell
+    '''
+    try:
+        subprocess.run(["osascript", "-e", script], check=True)
+        time.sleep(0.5)
+        return True, f"Switched to Desktop {number}"
+    except Exception as e:
+        return False, f"Couldn't switch desktops: {e}"
+def switch_desktop(desktop_id:int = 1):
+    _, msg = do_switch_desktop(desktop_id)
+    return msg
