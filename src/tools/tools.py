@@ -10,6 +10,7 @@ import threading
 
 import json
 import psutil
+import shutil
 
 
 white_list = {
@@ -148,12 +149,14 @@ def open_webspace(name: str, desktop=None) -> str:
         summary += message
     return summary
 
-def open_app(name: str, desktop=None, new_instance: bool = False) -> str:
+def open_app(name: str, desktop=None, new_instance:bool = None) -> str:
     """
     Opens a whitelisted macOS application by name.
     Returns a string describing what happened (success or refusal) —
     this string is what gets fed back to Ollama, so make it clear.
     """
+    print("PATH:", os.environ.get("PATH"))
+    print("CODE:", shutil.which("code"))
     if desktop is not None:
         ok, msg = do_switch_desktop(desktop)
         if not ok: # If error
@@ -168,7 +171,11 @@ def open_app(name: str, desktop=None, new_instance: bool = False) -> str:
 
     try:
         if config['launch'] == "code":
-            cmd = ["code"]
+            # might be because terminal don't recognize environment
+            code_path = shutil.which("code")
+            if code_path is None:
+                return ("VS Code command 'code' was not found in PATH. This may happen when JARVIS is launched through Automator.")
+            cmd = [code_path]
             if force_instance:
                 cmd.append("-n")
             subprocess.run(cmd)
