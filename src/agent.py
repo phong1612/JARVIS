@@ -25,7 +25,7 @@ def build_tool_index():
         )
 
 CORE_TOOLS = {"search_memory"} # always included
-def select_tools(query: str, k:int = 6):
+def select_tools(query: str, k:int = 4):
     query_embed = get_embedding(query)
     results = tool_index.query(query_embeddings=[query_embed], n_results = k)
     selected = set(results["documents"][0]) | CORE_TOOLS
@@ -493,9 +493,9 @@ def run_agent(user_text: str, history: list) -> str:
     back for a final natural-language reply. Otherwise, return its
     direct answer as-is.
     """
-    
+    agent_start = time.time()
     relevant_schema, relevant_functions = select_tools(user_text)
-
+    print(f"[TIME] Tool selection: {time.time() - agent_start:.2f}s")
     system_message = {
     "role": "system",
     "content":
@@ -526,6 +526,25 @@ def run_agent(user_text: str, history: list) -> str:
     - Checking current information (time/date/battery) → use the relevant tool
     - Searching online → use the search tool
     - Recalling previous information → use search_memory
+    
+    Response style:
+    - Be concise.
+    - When you successfully perform an action, confirm it briefly.
+    - Do not ask unnecessary follow-up questions.
+    - Do not explain what you did unless asked.
+    - For simple actions, respond with one short sentence.
+    - If a tool result indicates a failure, error, or refusal, you MUST relay that honestly to the user — never invent a plausible-sounding answer to cover for a failed tool call.
+    
+
+    Examples:
+    User: "Open Zalo."
+    JARVIS: "Zalo is open, sir."
+
+    User: "What's my battery?"
+    JARVIS: "Your battery is at 78%."
+
+    User: "Go to desktop 3."
+    JARVIS: "Switching to desktop 3, sir."
 
     Do not describe tool calls in text.
     Never write examples like:
@@ -565,13 +584,15 @@ def run_agent(user_text: str, history: list) -> str:
     """
     }
     message = [system_message] + history + [{"role": "user", "content": user_text}]
+    first_start = time.time()
     response = ollama.chat(
         model=MODEL,
         messages=message,
         tools=relevant_schema,
         options={"temperature": 0, "num_ctx": 4096},
-        keep_alive="0"
+        keep_alive="5m"
     )
+    print(f"[TIME] First Ollama: {time.time() - first_start:.2f}s")
     content = response['message']['content'].strip()
     if content.startswith('{') and '"name"' in content and '"parameters"' in content:
         return "Sorry, I got confused processing that — could you rephrase?"
@@ -579,26 +600,28 @@ def run_agent(user_text: str, history: list) -> str:
     if not tool_calls:
         return clean_content(response['message']['content'])
     message.append(response['message'])
-
+    tool_start = time.time()
     tool_calls = response['message'].tool_calls
-    print(f"Tool call: {tool_calls}")
     for tool in tool_calls:
         function_name = tool.function.name
         arguments = tool.function.arguments
         results = safe_call(function_name, arguments)
-        time.sleep(1.5)
 
         message.append({
             'role': 'tool',
             'content': str(results)
         })
+    print(f"[TIME] Tool execution: {time.time() - tool_start:.2f}s")
+    final_start = time.time()
     final_response = ollama.chat(
         model=MODEL, 
         messages=message, 
-        tools=tools_schema,
+        tools=relevant_schema,
         options={'temperature': 0, "num_ctx": 4096},
-        keep_alive="0"
+        keep_alive="5m"
     )
+    print(f"[TIME] Final Ollama: {time.time() - final_start:.2f}s")
+    print(f"[TIME] Total Agent: {time.time() - agent_start:.2f}s")
     answer = clean_content(final_response['message']['content'])
 
     return answer

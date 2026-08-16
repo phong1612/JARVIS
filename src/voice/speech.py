@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 import os
+import time
 
 BASE_DIR = Path(__file__).parent
 
@@ -28,6 +29,7 @@ def speak(text: str):
 
         tmp_file = tmp.name
     try:
+        piper_start = time.perf_counter()
         piper = subprocess.run(
             [
                 "piper",
@@ -39,11 +41,17 @@ def speak(text: str):
             input=text.encode("utf-8"),
             capture_output = True
         )
+
+        print(f"[TIME] Piper generation: {time.perf_counter() - piper_start:.2f}s")
+
+        play_start = time.perf_counter()
+
         if piper.returncode != 0:
             print(f"Piper failed: {piper.stderr.decode(errors='ignore')}")
             return
         
         subprocess.run(["afplay", tmp_file])
+        print(f"[TIME] Audio playback: {time.perf_counter() - play_start:.2f}s")
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)

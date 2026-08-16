@@ -46,14 +46,13 @@ browsers = {
     "safari": "Safari"
 }
 workspaces = {
-    "coding": ["vs code", "brave", "notion", "activity monitor"],
-    "trading": ["tradingview", "brave", "discord"],
-    "study": ["notion", "obsidian"],
+    "coding": ["vs code", "notion", "activity monitor"],
+    "trading": ["tradingview", "notion", "discord", "obsidian"],
 }
 webspaces = {
     "entertainment": ["youtube", "facebook", "instagram"],
     "school": ["moodle", "gmail", "ed"],
-    "code": ["vercel", "github", "supabase"]
+    "deploy": ["vercel", "github", "supabase"]
 }
 
 
@@ -155,8 +154,6 @@ def open_app(name: str, desktop=None, new_instance:bool = None) -> str:
     Returns a string describing what happened (success or refusal) —
     this string is what gets fed back to Ollama, so make it clear.
     """
-    print("PATH:", os.environ.get("PATH"))
-    print("CODE:", shutil.which("code"))
     if desktop is not None:
         ok, msg = do_switch_desktop(desktop)
         if not ok: # If error
