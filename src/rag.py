@@ -52,7 +52,7 @@ if __name__ == "__main__":
         embeddings=[get_embedding(text) for text in docs],
         ids=[f"doc_{i}" for i in range(len(docs))]
     )
-    save_memory("The user's name is Jason, also known as Phong Dinh. He is a Master of AI student at Monash University, building JARVIS as his primary AI/ML portfolio project.")
+    save_memory("The user's name is Jason, also known as Phong Dinh. He was born in 2002. He is a Master of AI student at Monash University, building JARVIS as his primary AI/ML portfolio project.")
     print(f"Memory count: {memory_collection.count()}")
     print(f"Knowledge count: {collections.count()}")
     for doc in memory_collection.get()["documents"]:

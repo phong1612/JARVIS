@@ -312,7 +312,7 @@ tools_schema = [
         'type': 'function',
         'function': {
             "name": "get_date",
-            "description": "Get the current local time. Use this when the user ask for the current time.",
+            "description": "Get the current local date. Use this when the user ask for the current day or current date.",
             "parameters": {
                 "type": "object",
                 "properties": {}
@@ -577,10 +577,10 @@ def run_agent(user_text: str, history: list) -> str:
     {site_names}
 
     Available workspaces:
-    {workspaces}
+    {', '.join(workspaces.keys())}
 
     Available webspaces:
-    {webspaces}
+    {', '.join(webspaces.keys())}
     """
     }
     message = [system_message] + history + [{"role": "user", "content": user_text}]
@@ -589,7 +589,7 @@ def run_agent(user_text: str, history: list) -> str:
         model=MODEL,
         messages=message,
         tools=relevant_schema,
-        options={"temperature": 0, "num_ctx": 4096},
+        options={"temperature": 0, "num_ctx": 4096, "num_predict": 150},
         keep_alive="5m"
     )
     print(f"[TIME] First Ollama: {time.time() - first_start:.2f}s")
